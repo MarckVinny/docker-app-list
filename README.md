@@ -4,6 +4,8 @@ Este repositório é um aplicativo de amostra para os usuários após o [guia de
 
 O aplicativo é baseado no aplicativo do [tutorial de início](https://github.com/docker/getting-started)
 
+---
+
 # Comandos Utilizados
 
 ## Persistir os dados das tarefas
@@ -32,7 +34,7 @@ Você pode criar o volume e iniciar o contêiner usando a ***CLI*** ou a interfa
     docker run -dp 127.0.0.1:3000:3000 --mount type=volume,src=todo-db,target=/etc/todos getting-started
     ```
 
-    > [!NOTE] Observação:  
+    > :warning: ***Observação:***  
     > Se você estiver usando o Git Bash, deverá usar uma sintaxe diferente para este comando.
     >
     >
@@ -95,4 +97,107 @@ Você deverá ver uma saída como esta:
     }
 ]
 ```
+
 Esta `Mountpoint` é a localização real dos dados no disco. Observe que, na maioria das máquinas, você precisará ter acesso `root` para acessar este diretório a partir do host.
+
+## Usar montagens de vinculação
+
+No tópico anterior, você usou uma ***montagem de volume*** para persistir os dados no seu banco de dados. Uma montagem de volume é uma ótima opção quando você precisa de um local persistente para armazenar os dados do seu aplicativo.
+
+Uma montagem de vinculação é outro tipo de montagem que permite compartilhar um diretório do sistema de arquivos do ***host*** com o ***contêiner***. Ao trabalhar em uma aplicação, você pode usar uma ***montagem de vinculação*** para montar o ***código-fonte no contêiner***. O contêiner vê as alterações feitas no código imediatamente, assim que você salva um arquivo. Isso significa que você pode executar processos no contêiner que monitoram as alterações no sistema de arquivos e respondem a elas.
+
+Neste tópico, você verá como usar montagens de vinculação e uma ferramenta chamada `nodemon` para monitorar alterações em arquivos e, em seguida, reiniciar o aplicativo automaticamente. Existem ferramentas equivalentes na maioria das outras linguagens e frameworks.
+
+## Comparações rápidas de tipos de volume
+
+A seguir estão exemplos de um volume nomeado e uma montagem de vinculação usando `--mount`:
+
+- ***Volume Nomeado:***  
+`type=volume,src=my-volume,target=/usr/local/data` 
+
+- ***Montagem de Vinculação:***  
+`type=bind,src=/path/to/data,target=/usr/local/data`  
+
+A tabela a seguir descreve as principais diferenças entre volume nomeado e montagens de vinculação.
+
+|                       | Volumes nomeados         | Montagens de ligação      |
+|-----------------------|-------------------------|---------------------------|
+| Localização do host   | O Docker escolhe        | Você decide               |
+| Preenche o novo volume com o conteúdo do contêiner | Sim                    | Não                      |
+| Suporta drivers de volume | Sim                  | Não                      |
+
+## Testando montagens de vinculação
+
+Antes de ver como você pode usar montagens de vinculação para desenvolver seu aplicativo, você pode executar um experimento rápido para obter uma compreensão prática de como as montagens de vinculação funcionam.
+
+1. Verifique se o seu diretório `getting-started-app` está em um diretório definido na configuração de compartilhamento de arquivos do Docker Desktop. Essa configuração define quais partes do seu sistema de arquivos você pode compartilhar com contêineres. Para obter detalhes sobre como acessar a configuração, consulte [Compartilhamento de arquivos](https://docs.docker.com/desktop/settings-and-maintenance/settings/#file-sharing).
+
+> ℹ ***Observação***  
+> A guia Compartilhamento de arquivos só está disponível no modo Hyper-V, porque os arquivos são compartilhados automaticamente no modo WSL 2 e no modo de contêiner do Windows.
+
+2. Abra um terminal e altere o diretório para o diretório `getting-started-app`.
+
+3. Execute o seguinte comando `bash` para iniciar em um contêiner `ubuntu` com uma montagem de vinculação.
+
+    ```bash
+    docker run -it --mount type=bind,src="$(pwd)",target=/src ubuntu bash
+    ```
+    
+    A opção `--mount type=bind` informa ao Docker para criar uma montagem de vinculação, onde `src` é o diretório de trabalho atual na sua máquina `host` *(`getting-started-app`)*, e `target` é onde esse diretório deve aparecer dentro do contêiner *(`/src`)*.
+
+4. Depois de executar o comando, o Docker inicia uma sessão `bash` interativa no diretório raiz do sistema de arquivos do contêiner.
+
+
+```bash 
+root@ac1237fad8db:/# pwd
+/
+root@ac1237fad8db:/# ls
+bin   dev  home  media  opt   root  sbin  srv  tmp  var
+boot  etc  lib   mnt    proc  run   src   sys  usr
+```
+
+5. Alterar diretório para o diretório `src`.
+
+Este é o diretório que você montou ao iniciar o contêiner. Listar o conteúdo deste diretório exibe os mesmos arquivos que estão no diretório `getting-started-app` da sua máquina host.
+
+```bash
+root@ac1237fad8db:/# cd src
+root@ac1237fad8db:/src# ls
+Dockerfile  node_modules  package.json  spec  src  yarn.lock
+```
+
+6. Crie um novo arquivo chamado `myfile.txt`.
+
+```bash
+root@ac1237fad8db:/src# touch myfile.txt
+root@ac1237fad8db:/src# ls
+Dockerfile  myfile.txt  node_modules  package.json  spec  src  yarn.lock
+```
+
+7. Abra o diretório `getting-started-app` no host e observe que o arquivo `myfile.txt` está no diretório.
+
+```bash
+├── getting-started-app/
+│ ├── Dockerfile
+│ ├── myfile.txt
+│ ├── node_modules/
+│ ├── package.json
+│ ├── spec/
+│ ├── src/
+│ └── yarn.lock
+```
+
+8. No host, exclua o myfile.txtarquivo.
+
+9. No contêiner, liste o conteúdo do appdiretório mais uma vez. Observe que o arquivo desapareceu.
+
+```bash
+root@ac1237fad8db:/src# ls
+Dockerfile  node_modules  package.json  spec  src  yarn.lock
+```
+
+10. Pare a sessão do contêiner interativo com ***Ctrl+ D***.
+
+Isso é tudo para uma breve introdução às montagens de vinculação. Este procedimento demonstrou como os arquivos são compartilhados entre o ***host*** e o ***contêiner*** e como as alterações são imediatamente refletidas em ambos os lados. Agora você pode usar montagens de vinculação para desenvolver software.
+
+
